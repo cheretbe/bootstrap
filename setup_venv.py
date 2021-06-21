@@ -73,8 +73,9 @@ def main():
 
     print("Checking installed packages")
     apt_packages_to_install = []
-    # TODO: Do we actually need build-essential?
-    # for apt_package in ("build-essential", "python3-venv", "python3-dev"):
+    # Used to have "build-essential" and "python3-dev" packages here, but it seems
+    # that they are not needed for building wheels. Nevertheless, leaving for loop
+    # here so it would be easy to add more packages if the need arises.
     for apt_package in ("python3-venv",):
         if (subprocess.run( #pylint: disable=subprocess-run-check
                 ["/usr/bin/dpkg-query", "-s", apt_package],
