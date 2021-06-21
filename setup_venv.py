@@ -66,6 +66,9 @@ def main():
         sys.exit(0)
 
     if not options.batch_mode:
+        # Reopen /dev/tty when running script from a pipeline
+        if not sys.stdin.isatty():
+            sys.stdin = open("/dev/tty")
         print("A Python 3 virtual environment needs to be created for this script to run")
         if not query_yes_no("Would you like to setup the venv now?"):
             sys.exit("Cancelled by user")
@@ -109,7 +112,7 @@ def main():
                 )
             ]
         else:
-            apt_cmd = [f"/usr/bin/apt-get update {apt_packages_to_install}"]
+            apt_cmd = [f"/usr/bin/apt-get -y -qq install {apt_packages_to_install}"]
         print(sudo_cmd + apt_cmd)
         subprocess.check_call(sudo_cmd + apt_cmd)
 
