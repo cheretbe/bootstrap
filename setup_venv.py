@@ -70,7 +70,7 @@ def main():
         if not sys.stdin.isatty():
             sys.stdin = open("/dev/tty")
         print("A Python 3 virtual environment needs to be created for this script to run")
-        if not query_yes_no("Would you like to setup the venv now?"):
+        if not query_yes_no(f"Would you like to setup venv '{venv_path}' now?"):
             sys.exit("Cancelled by user")
     print(f"Creating venv '{venv_path}'")
 

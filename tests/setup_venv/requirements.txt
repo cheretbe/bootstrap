@@ -1,3 +1,3 @@
 requests
 humanfriendly
-ansible
+colorama

@@ -1,7 +1,12 @@
 # bootstrap
 
 
-setup_venv.py
+### setup_venv.py
+```bash
+/usr/bin/curl -s https://raw.githubusercontent.com/cheretbe/bootstrap/master/setup_venv.py?flush_cache=True \
+  | /usr/bin/python3 - env_name
+```
+Script usage
 ```bash
 #!/bin/bash
 
@@ -11,7 +16,7 @@ script_dir="$( cd "$( /usr/bin/dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 &&
 
 # [!] Change env_name to actual venv name
 if [ ! -d ${HOME}/.cache/venv/env_name ]; then
-  curl -s https://raw.githubusercontent.com/cheretbe/bootstrap/master/setup_venv.py?flush_cache=True
+  /usr/bin/curl -s https://raw.githubusercontent.com/cheretbe/bootstrap/master/setup_venv.py?flush_cache=True \
     | /usr/bin/python3 - env_name --requirement ${script_dir}/requirements.txt --batch-mode
 fi
 
