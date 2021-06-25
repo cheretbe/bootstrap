@@ -52,31 +52,29 @@ def parse_arguments():
         "-b", "--batch-mode", action="store_true", default=False,
         help="Batch mode (disables all prompts)"
     )
+    parser.add_argument(
+        "-p", "--python", choices=["system", "3.9"], default="system",
+        help="Python version to use (default: system)"
+    )
     options = parser.parse_args()
     if os.path.sep in options.venv_name:
         sys.exit("ERROR: virtual environment name should be a directory name, not full path")
 
     return options
 
-def main():
-    options = parse_arguments()
-
-    venv_path = os.path.expanduser(f"~/.cache/venv/{options.venv_name}")
-    if os.path.isdir(venv_path):
-        sys.exit(0)
-
-    if not options.batch_mode:
-        # Reopen /dev/tty when running script from a pipeline
-        if not sys.stdin.isatty():
-            sys.stdin = open("/dev/tty")
-        print("A Python 3 virtual environment needs to be created for this script to run")
-        if not query_yes_no(f"Would you like to setup venv '{venv_path}' now?"):
-            sys.exit("Cancelled by user")
-    print(f"Creating venv '{venv_path}'")
+def install_packages(options):
+    if options.python == "system":
+        package_list = ("python3-venv", "python3-dev")
+    else:
+        package_list = (
+            "build-essential", "tk-dev", "libncurses5-dev", "libncursesw5-dev",
+            "libreadline6-dev", "libdb5.3-dev", "libgdbm-dev", "libsqlite3-dev",
+            "libssl-dev", "libbz2-dev", "libexpat1-dev", "liblzma-dev", "zlib1g-dev"
+        )
 
     print("Checking installed packages")
     apt_packages_to_install = []
-    for apt_package in ("python3-venv", "python3-dev"):
+    for apt_package in package_list:
         if (subprocess.run( #pylint: disable=subprocess-run-check
                 ["/usr/bin/dpkg-query", "-s", apt_package],
                 stdout=subprocess.DEVNULL,
@@ -112,6 +110,37 @@ def main():
             apt_cmd = [f"/usr/bin/apt-get -y -qq install {apt_packages_to_install}"]
         print(sudo_cmd + apt_cmd)
         subprocess.check_call(sudo_cmd + apt_cmd)
+
+def build_python(python_ver):
+    if python_ver == "3.9":
+        download_url = "https://www.python.org/ftp/python/3.9.5/Python-3.9.5.tgz"
+    else:
+        sys.exit(f"Unsupported Python version: {python_ver}")
+
+    subprocess.check_call(["/usr/bin/curl", download_url, "--output", "Python-3.9.5.tgz"])
+
+def main():
+    options = parse_arguments()
+
+    venv_path = os.path.expanduser(f"~/.cache/venv/{options.venv_name}")
+    if os.path.isdir(venv_path):
+        sys.exit(0)
+
+    if not options.batch_mode:
+        # Reopen /dev/tty when running script from a pipeline
+        if not sys.stdin.isatty():
+            sys.stdin = open("/dev/tty")
+        print("A Python 3 virtual environment needs to be created for this script to run")
+        if not query_yes_no(f"Would you like to setup venv '{venv_path}' now?"):
+            sys.exit("Cancelled by user")
+    print(f"Creating venv '{venv_path}'")
+
+    install_packages(options)
+
+    if options.python != "system":
+        build_python(options.python)
+
+    sys.exit(0)
 
     print(["/usr/bin/python3", "-m", "venv", venv_path])
     subprocess.check_call(["/usr/bin/python3", "-m", "venv", venv_path])
