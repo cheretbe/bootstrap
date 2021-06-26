@@ -4,6 +4,8 @@ import os
 import sys
 import argparse
 import subprocess
+import tempfile
+import getpass
 
 # https://stackoverflow.com/questions/3041986/apt-command-line-interface-like-yes-no-input/3041990#3041990
 def query_yes_no(question, default="yes"):
@@ -53,7 +55,7 @@ def parse_arguments():
         help="Batch mode (disables all prompts)"
     )
     parser.add_argument(
-        "-p", "--python", choices=["system", "3.9"], default="system",
+        "-p", "--python", choices=["system", "3.8", "3.9"], default="system",
         help="Python version to use (default: system)"
     )
     options = parser.parse_args()
@@ -68,7 +70,7 @@ def install_packages(options):
     else:
         package_list = (
             "build-essential", "tk-dev", "libncurses5-dev", "libncursesw5-dev",
-            "libreadline6-dev", "libdb5.3-dev", "libgdbm-dev", "libsqlite3-dev",
+            "libreadline-dev", "libdb5.3-dev", "libgdbm-dev", "libsqlite3-dev",
             "libssl-dev", "libbz2-dev", "libexpat1-dev", "liblzma-dev", "zlib1g-dev"
         )
 
@@ -114,10 +116,44 @@ def install_packages(options):
 def build_python(python_ver):
     if python_ver == "3.9":
         download_url = "https://www.python.org/ftp/python/3.9.5/Python-3.9.5.tgz"
+        archive_name = "Python-3.9.5.tgz"
+        extracted_dir = "Python-3.9.5"
+        python_path = "/usr/local/bin/python3.9"
+    elif python_ver == "3.8":
+        download_url = "https://www.python.org/ftp/python/3.8.10/Python-3.8.10.tgz"
+        archive_name = "Python-3.8.10.tgz"
+        extracted_dir = "Python-3.8.10"
+        python_path = "/usr/local/bin/python3.8"
     else:
         sys.exit(f"Unsupported Python version: {python_ver}")
 
-    subprocess.check_call(["/usr/bin/curl", download_url, "--output", "Python-3.9.5.tgz"])
+    if not os.path.isfile(python_path):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            print(f"Downloading {download_url}")
+            subprocess.check_call(
+                ["/usr/bin/curl", download_url, "--output", archive_name],
+                cwd=temp_dir
+            )
+            print(f"Extracting {archive_name}")
+            subprocess.check_call(["tar", "xzf", archive_name], cwd=temp_dir)
+            # subprocess.check_call(["ls", "-lha"], cwd=temp_dir)
+            build_dir = os.path.join(temp_dir, extracted_dir)
+            build_env = os.environ.copy()
+            if "/usr/bin" not in build_env["PATH"]:
+                build_env["PATH"] += os.pathsep + "/usr/bin"
+            subprocess.check_call(
+                ["./configure", "--enable-optimizations"],
+                cwd=build_dir, env=build_env
+            )
+            subprocess.check_call(
+                ["sudo", "make", "altinstall"],
+                cwd=build_dir, env=build_env
+            )
+            subprocess.check_call(
+                ["/usr/bin/sudo", "chown", "-R", getpass.getuser(), build_dir],
+            )
+    return python_path
+
 
 def main():
     options = parse_arguments()
@@ -137,16 +173,16 @@ def main():
 
     install_packages(options)
 
-    if options.python != "system":
-        build_python(options.python)
+    if options.python == "system":
+        python_path = "/usr/bin/python3"
+    else:
+        python_path = build_python(options.python)
 
-    sys.exit(0)
-
-    print(["/usr/bin/python3", "-m", "venv", venv_path])
-    subprocess.check_call(["/usr/bin/python3", "-m", "venv", venv_path])
+    print([python_path, "-m", "venv", venv_path])
+    subprocess.check_call([python_path, "-m", "venv", venv_path])
     pip_cmd = (
         f". {venv_path}/bin/activate &&\n"
-        "pip3 install wheel &&\n"
+        "pip3 install --disable-pip-version-check wheel &&\n"
         "pip3 install --upgrade pip &&\n"
     )
     if options.requirement is not None:
