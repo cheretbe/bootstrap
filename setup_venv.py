@@ -113,19 +113,19 @@ def install_packages(options):
         print(sudo_cmd + apt_cmd)
         subprocess.check_call(sudo_cmd + apt_cmd)
 
-def build_python(python_ver):
-    if python_ver == "3.9":
+def build_python(options):
+    if options.python == "3.9":
         download_url = "https://www.python.org/ftp/python/3.9.5/Python-3.9.5.tgz"
         archive_name = "Python-3.9.5.tgz"
         extracted_dir = "Python-3.9.5"
         python_path = "/usr/local/bin/python3.9"
-    elif python_ver == "3.8":
+    elif options.python == "3.8":
         download_url = "https://www.python.org/ftp/python/3.8.10/Python-3.8.10.tgz"
         archive_name = "Python-3.8.10.tgz"
         extracted_dir = "Python-3.8.10"
         python_path = "/usr/local/bin/python3.8"
     else:
-        sys.exit(f"Unsupported Python version: {python_ver}")
+        sys.exit(f"Unsupported Python version: {options.python}")
 
     if not os.path.isfile(python_path):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -145,12 +145,21 @@ def build_python(python_ver):
                 ["./configure", "--enable-optimizations"],
                 cwd=build_dir, env=build_env
             )
+            # altinstall does not hide system Python binaries, just installs new
+            # version alongside the system one
+            print(f"\nRunning altinstall of {extracted_dir}")
+            sudo_cmd = ["/usr/bin/sudo"]
+            if options.batch_mode:
+                sudo_cmd += ["-n"]
             subprocess.check_call(
-                ["sudo", "make", "altinstall"],
+                sudo_cmd + ["make", "altinstall"],
                 cwd=build_dir, env=build_env
             )
+            # Running make as root causes some files in the build directory to be
+            # created with root as an owner. Changing the owner to current user
+            # so that TemporaryDirectory cleanup code would not fail
             subprocess.check_call(
-                ["/usr/bin/sudo", "chown", "-R", getpass.getuser(), build_dir],
+                sudo_cmd + ["chown", "-R", getpass.getuser(), build_dir],
             )
     return python_path
 
@@ -172,11 +181,12 @@ def main():
     print(f"Creating venv '{venv_path}'")
 
     install_packages(options)
+    # sys.exit(0)
 
     if options.python == "system":
         python_path = "/usr/bin/python3"
     else:
-        python_path = build_python(options.python)
+        python_path = build_python(options)
 
     print([python_path, "-m", "venv", venv_path])
     subprocess.check_call([python_path, "-m", "venv", venv_path])
