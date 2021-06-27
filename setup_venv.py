@@ -71,7 +71,8 @@ def install_packages(options):
         package_list = (
             "build-essential", "tk-dev", "libncurses5-dev", "libncursesw5-dev",
             "libreadline-dev", "libdb5.3-dev", "libgdbm-dev", "libsqlite3-dev",
-            "libssl-dev", "libbz2-dev", "libexpat1-dev", "liblzma-dev", "zlib1g-dev"
+            "libssl-dev", "libbz2-dev", "libexpat1-dev", "liblzma-dev",
+            "zlib1g-dev", "libffi-dev"
         )
 
     print("Checking installed packages")
