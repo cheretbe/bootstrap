@@ -152,8 +152,10 @@ def build_python(options):
             sudo_cmd = ["/usr/bin/sudo"]
             if options.batch_mode:
                 sudo_cmd += ["-n"]
+            # Use all available CPU cores
+            # https://stackoverflow.com/questions/1006289/how-to-find-out-the-number-of-cpus-using-python/55423170#55423170
             subprocess.check_call(
-                sudo_cmd + ["make", "altinstall"],
+                sudo_cmd + ["make", "altinstall", "-j", str(len(os.sched_getaffinity(0)))],
                 cwd=build_dir, env=build_env
             )
             # Running make as root causes some files in the build directory to be
