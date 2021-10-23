@@ -36,3 +36,32 @@ if ($NULL -eq $installedHostCert) {
 } #if
 Write-Output "Host's certificate info:"
 Write-Output ("Subject: {0}, Thumbprint: {1}" -f $installedHostCert.Subject, $installedHostCert.Thumbprint)
+
+Enable-PSRemoting
+
+if (
+  $NULL -eq
+  (Get-ChildItem WSMan:\Localhost\listener |
+    Where-Object { $_.Keys -contains "Transport=HTTPS" }
+  )
+) {
+  Write-Output "Enabling HTTPS listener"
+  New-Item -Path WSMan:\LocalHost\Listener -Transport HTTPS -Address * `
+    -CertificateThumbPrint $installedHostCert.Thumbprint -Force | Out-Null
+} #if
+
+if ($NULL -eq (Get-NetFirewallRule -Name "WINRM-HTTPS-In-TCP-NoScope" -ErrorAction SilentlyContinue)) {
+  Write-Output "Adding firewall rule for WinRM over HTTPS"
+  if ((Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Nls\Language").InstallLanguage -eq "0419") {
+    $fwDisplayName = "Удаленное управление Windows (HTTPS - входящий трафик)"
+    $fwDescription = "Правило входящего трафика для удаленного управления Windows через WS-Management. [TCP 5986]"
+  } else {
+    $fwDisplayName = "Windows Remote Management (HTTPS-In)"
+    $fwDescription = "Inbound rule for Windows Remote Management via WS-Management. [TCP 5986]"
+  } #if
+  (
+    New-NetFirewallRule -Name 'WINRM-HTTPS-In-TCP-NoScope'-DisplayName $fwDisplayName `
+      -Group '@FirewallAPI.dll,-30267' -Description $fwDescription -Profile Any `
+      -LocalPort 5986 -Protocol TCP
+  ) | Out-Null
+} #if
