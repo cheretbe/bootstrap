@@ -23,3 +23,24 @@ fi
 "${HOME}/.cache/venv/env_name/bin/python3" ${script_dir}/script.py "$@"
 
 ```
+
+### enable_winrm_over_https.ps1
+
+```batch
+powershell "Invoke-Command -ScriptBlock ([Scriptblock]::Create(((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/cheretbe/bootstrap/master/enable_winrm_over_https.ps1?flush_cache=True'))))"
+```
+
+<details>
+  <summary>:warning: "-KeepHTTP" can't be passed as switch when using Invoke-Command</summary>
+
+  * https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/invoke-command?view=powershell-5.1
+  **Note to -ScriptBlock:**<br>
+  Parameters for the scriptblock can only be passed in from ArgumentList by
+  position. Switch parameters cannot be passed by position. If you need a
+  parameter that behaves like a SwitchParameter type, use a Boolean type instead.
+</details>
+
+```batch
+:: Keeping default HTTP listener (useful when debugging)
+powershell "Invoke-Command -ScriptBlock ([Scriptblock]::Create(((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/cheretbe/bootstrap/master/enable_winrm_over_https.ps1?flush_cache=True')))) -ArgumentList @($TRUE)"
+```
