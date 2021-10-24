@@ -44,4 +44,6 @@ powershell "Invoke-Command -ScriptBlock ([Scriptblock]::Create(((New-Object Syst
 ```batch
 :: Keeping default HTTP listener (useful when debugging)
 powershell "Invoke-Command -ScriptBlock ([Scriptblock]::Create(((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/cheretbe/bootstrap/master/enable_winrm_over_https.ps1?flush_cache=True')))) -ArgumentList @($TRUE)"
+
+powershell "Invoke-Command -ScriptBlock ([Scriptblock]::Create((Get-Content C:\host_home\projects\bootstrap\enable_winrm_over_https.ps1 -Raw))) -ArgumentList @($TRUE)"
 ```
