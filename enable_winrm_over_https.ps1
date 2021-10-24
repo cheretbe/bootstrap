@@ -1,3 +1,8 @@
+[CmdletBinding()]
+param(
+  [switch]$KeepHTTP
+)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
 
@@ -37,14 +42,12 @@ if ($NULL -eq $installedHostCert) {
 Write-Output "Host's certificate info:"
 Write-Output ("Subject: {0}, Thumbprint: {1}" -f $installedHostCert.Subject, $installedHostCert.Thumbprint)
 
-Enable-PSRemoting
+$httpListener = Get-ChildItem WSMan:\Localhost\listener | Where-Object { $_.Keys -contains "Transport=HTTP" }
+$httpsListener = Get-ChildItem WSMan:\Localhost\listener | Where-Object { $_.Keys -contains "Transport=HTTPS" }
+if (($NULL -eq $httpListener) -and ($NULL -eq $httpsListener))
+  { Enable-PSRemoting }
 
-if (
-  $NULL -eq
-  (Get-ChildItem WSMan:\Localhost\listener |
-    Where-Object { $_.Keys -contains "Transport=HTTPS" }
-  )
-) {
+if ($NULL -eq $httpsListener) {
   Write-Output "Enabling HTTPS listener"
   New-Item -Path WSMan:\LocalHost\Listener -Transport HTTPS -Address * `
     -CertificateThumbPrint $installedHostCert.Thumbprint -Force | Out-Null
@@ -64,4 +67,16 @@ if ($NULL -eq (Get-NetFirewallRule -Name "WINRM-HTTPS-In-TCP-NoScope" -ErrorActi
       -Group '@FirewallAPI.dll,-30267' -Description $fwDescription -Profile Any `
       -LocalPort 5986 -Protocol TCP
   ) | Out-Null
+} #if
+
+if (-not($KeepHTTP.IsPresent)) {
+  if ($httpListener) {
+    Write-Output "Disabling HTTP listener"
+    $httpListener | Remove-Item -Recurse
+  } #if
+  $fwEnabled = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Enabled]::True
+  if ((Get-NetFirewallRule -Name "WINRM-HTTP-In-TCP-NoScope").Enabled -eq $fwEnabled) {
+    Write-Output "Disabling firewall rule for WinRM over HTTP"
+    Disable-NetFirewallRule -Name "WINRM-HTTP-In-TCP-NoScope"
+  } #if
 } #if
