@@ -46,8 +46,15 @@ $httpListener = Get-ChildItem WSMan:\Localhost\listener -ErrorAction SilentlyCon
   Where-Object { $_.Keys -contains "Transport=HTTP" }
 $httpsListener = Get-ChildItem WSMan:\Localhost\listener -ErrorAction SilentlyContinue |
   Where-Object { $_.Keys -contains "Transport=HTTPS" }
-if (($NULL -eq $httpListener) -and ($NULL -eq $httpsListener))
-  { Enable-PSRemoting }
+if (($NULL -eq $httpListener) -and ($NULL -eq $httpsListener)) {
+  if ((Get-NetConnectionProfile -NetworkCategory Public -ErrorAction SilentlyContinue)) {
+    throw(
+      "Enable-PSRemoting will fail since one of the network connection " +
+      "types on this machine is set to Public"
+    )
+  }
+  Enable-PSRemoting
+} #if
 
 if ($NULL -eq $httpsListener) {
   Write-Output "Enabling HTTPS listener"
@@ -81,4 +88,20 @@ if (-not($KeepHTTP.IsPresent)) {
     Write-Output "Disabling firewall rule for WinRM over HTTP"
     Disable-NetFirewallRule -Name "WINRM-HTTP-In-TCP-NoScope"
   } #if
+} #if
+
+# By default WinRM service has "automatic (delayed)" startup setting
+# This significantly increases waiting time for host to be available after reboot.
+# Aautomatic (delayed) startup type consists of two values in the registry
+# key "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\WinRM":
+# Startup = 2 (Automatic) and DelayedAutoStart = 1
+# Set-Service cmdlet on Powershell versions earlier then 6.0 is not aware
+# of "delayed" option, therefore calling it with -StartupType Automatic
+# parameter doesn't change service's startup setting.
+# That's why sc.exe is being used
+if ((Get-CIMInstance -Classname WIN32_Service -Filter "Name = 'WinRM'").DelayedAutoStart) {
+  Write-Output "Setting 'WinRM' service to start automatically"
+  & "sc.exe" @("config", "winrm", "start=", "auto")
+  if ($LASTEXITCODE -ne 0)
+    { throw ("sc.exe call exited with error code {0}" -f $LASTEXITCODE) }
 } #if
