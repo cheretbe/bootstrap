@@ -26,6 +26,7 @@ fi
 
 ### enable_winrm_over_https.ps1
 
+:warning: Make sure corresponging `.crt` and `.p12` files are in the current directory
 ```batch
 powershell "Invoke-Command -ScriptBlock ([Scriptblock]::Create(((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/cheretbe/bootstrap/master/enable_winrm_over_https.ps1?flush_cache=True'))))"
 ```

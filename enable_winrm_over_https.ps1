@@ -42,8 +42,10 @@ if ($NULL -eq $installedHostCert) {
 Write-Output "Host's certificate info:"
 Write-Output ("Subject: {0}, Thumbprint: {1}" -f $installedHostCert.Subject, $installedHostCert.Thumbprint)
 
-$httpListener = Get-ChildItem WSMan:\Localhost\listener | Where-Object { $_.Keys -contains "Transport=HTTP" }
-$httpsListener = Get-ChildItem WSMan:\Localhost\listener | Where-Object { $_.Keys -contains "Transport=HTTPS" }
+$httpListener = Get-ChildItem WSMan:\Localhost\listener -ErrorAction SilentlyContinue |
+  Where-Object { $_.Keys -contains "Transport=HTTP" }
+$httpsListener = Get-ChildItem WSMan:\Localhost\listener -ErrorAction SilentlyContinue |
+  Where-Object { $_.Keys -contains "Transport=HTTPS" }
 if (($NULL -eq $httpListener) -and ($NULL -eq $httpsListener))
   { Enable-PSRemoting }
 
