@@ -205,7 +205,7 @@ def main():
     if "/usr/bin" not in pip_env["PATH"].split(os.pathsep):
         pip_env["PATH"] += f"{os.pathsep}/usr/bin"
     if options.batch_mode:
-      pin_env["PIP_PROGRESS_BAR"] = "off"
+      pip_env["PIP_PROGRESS_BAR"] = "off"
     print(pip_cmd)
     subprocess.check_call(pip_cmd, shell=True, env=pip_env)
 
