@@ -6,6 +6,7 @@ import argparse
 import subprocess
 import tempfile
 import getpass
+import requests
 
 # https://stackoverflow.com/questions/3041986/apt-command-line-interface-like-yes-no-input/3041990#3041990
 def query_yes_no(question, default="yes"):
@@ -55,8 +56,8 @@ def parse_arguments():
         help="Batch mode (disables all prompts)"
     )
     parser.add_argument(
-        "-p", "--python", choices=["system", "3.8", "3.9"], default="system",
-        help="Python version to use (default: system)"
+        "-p", "--python", default="system",
+        help="Python version to use (system,3.8,3.9,etc default: system)"
     )
     options = parser.parse_args()
     if os.path.sep in options.venv_name:
@@ -115,18 +116,15 @@ def install_packages(options):
         subprocess.check_call(sudo_cmd + apt_cmd)
 
 def build_python(options):
-    if options.python == "3.9":
-        download_url = "https://www.python.org/ftp/python/3.9.5/Python-3.9.5.tgz"
-        archive_name = "Python-3.9.5.tgz"
-        extracted_dir = "Python-3.9.5"
-        python_path = "/usr/local/bin/python3.9"
-    elif options.python == "3.8":
-        download_url = "https://www.python.org/ftp/python/3.8.10/Python-3.8.10.tgz"
-        archive_name = "Python-3.8.10.tgz"
-        extracted_dir = "Python-3.8.10"
-        python_path = "/usr/local/bin/python3.8"
-    else:
-        sys.exit(f"Unsupported Python version: {options.python}")
+    python_releases = requests.get("https://endoflife.date/api/python.json").json()
+    release_info = next((x for x in python_releases if x["cycle"] == options.python), None)
+    if not release_info:
+        sys.exit(f"Can't find release info for Python version {options.python}")
+
+    download_url = f"https://www.python.org/ftp/python/{release_info['latest']}/Python-{release_info['latest']}.tgz"
+    archive_name = f"Python-{release_info['latest']}.tgz"
+    extracted_dir = f"Python-{release_info['latest']}"
+    python_path = f"/usr/local/bin/python{options.python}"
 
     if not os.path.isfile(python_path):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -139,6 +137,7 @@ def build_python(options):
             subprocess.check_call(["tar", "xzf", archive_name], cwd=temp_dir)
             # subprocess.check_call(["ls", "-lha"], cwd=temp_dir)
             build_dir = os.path.join(temp_dir, extracted_dir)
+            print(f"Build directory: {build_dir}")
             build_env = os.environ.copy()
             if "/usr/bin" not in build_env["PATH"]:
                 build_env["PATH"] += os.pathsep + "/usr/bin"
@@ -146,18 +145,29 @@ def build_python(options):
                 ["./configure", "--enable-optimizations"],
                 cwd=build_dir, env=build_env
             )
-            # altinstall does not hide system Python binaries, just installs new
-            # version alongside the system one
+            # We used to call sudo_cmd + ["make", "altinstall", "-j", str(len(os.sched_getaffinity(0)))]
+            # But Python 3.11 introduced a bug when 'altinstall -j' returns 2 even when
+            # there is no error: https://github.com/python/cpython/issues/101295
+            # Dividing in two separate calls for now to address this
+
+            # Use all available CPU cores
+            # https://stackoverflow.com/questions/1006289/how-to-find-out-the-number-of-cpus-using-python/55423170#55423170
+            subprocess.check_call(
+                ["make", "-j", str(len(os.sched_getaffinity(0)))],
+                cwd=build_dir, env=build_env
+            )
             print(f"\nRunning altinstall of {extracted_dir}")
             sudo_cmd = ["/usr/bin/sudo"]
             if options.batch_mode:
                 sudo_cmd += ["-n"]
-            # Use all available CPU cores
-            # https://stackoverflow.com/questions/1006289/how-to-find-out-the-number-of-cpus-using-python/55423170#55423170
+
+            # altinstall does not hide system Python binaries, just installs new
+            # version alongside the system one
             subprocess.check_call(
-                sudo_cmd + ["make", "altinstall", "-j", str(len(os.sched_getaffinity(0)))],
+                sudo_cmd + ["make", "altinstall"],
                 cwd=build_dir, env=build_env
             )
+
             # Running make as root causes some files in the build directory to be
             # created with root as an owner. Changing the owner to current user
             # so that TemporaryDirectory cleanup code would not fail
