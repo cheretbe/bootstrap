@@ -24,6 +24,12 @@ fi
 
 ```
 
+### build_python.py
+```bash
+/usr/bin/curl -s https://raw.githubusercontent.com/cheretbe/bootstrap/master/build_python.py?flush_cache=True \
+  | /usr/bin/python3 - 3.12
+```
+
 ### enable_winrm_over_https.ps1
 
 :warning: Make sure corresponging `.crt` and `.p12` files are in the current directory
